@@ -2,8 +2,8 @@ name: 构建并推送镜像到 AWS 中国区 ECR
 on:  
   push:  
     branches:  
-      - main  # 触发分支，可自定义  
-  workflow_dispatch:    # 支持手动触发  
+      - main  
+  workflow_dispatch:   
 
 
 jobs:  
@@ -16,7 +16,6 @@ jobs:
       - name: 构建 Docker 镜像  
         run: |  
           docker build -t my-local-image:${{ github.sha }} .  
-          # 说明：my-local-image 为本地镜像名，可自定义  
 
       - name: 推送镜像到 AWS 中国区 ECR  
         id: ecr-push  
@@ -24,13 +23,11 @@ jobs:
         with:  
           access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  
           secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  
-          region: cn-northwest-1  # 中国区区域，可选 cn-north-1 或 cn-northwest-1  
+          region: cn-northwest-1  # 与 ECR 仓库区域一致  
           local-image: my-local-image:${{ github.sha }}  
           image: 500953614955.dkr.ecr.cn-northwest-1.amazonaws.com.cn/devops/thumbnailpicture:${{ github.sha }}, 500953614955.dkr.ecr.cn-northwest-1.amazonaws.com.cn/devops/thumbnailpicture:latest  
-          # 说明：  
-          # 1. 替换 500953614955 为你的 AWS 账户 ID  
-          # 2. your-ecr-repo 替换为 ECR 仓库名（需提前创建）  
+          # 关键：地址包含 .amazonaws.com.cn 后缀，仓库名 devops/thumbnailpicture 需与 ECR 一致  
 
       - name: 输出镜像地址  
         run: |  
-          echo "推送的镜像地址: ${{ steps.ecr-push.outputs.imageUrl }}"
+          echo "镜像地址: ${{ steps.ecr-push.outputs.imageUrl }}"
