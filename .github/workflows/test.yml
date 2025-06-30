@@ -1,40 +1,36 @@
-name: 构建并推送镜像到 AWS-CN ECR
-on:
-  push:
-    branches:
-      - main  # 触发分支，可改成你的分支名（如 dev、master）
-  workflow_dispatch:  # 允许手动触发（点一下就执行）
+name: 构建并推送镜像到 AWS 中国区 ECR  
+on:  
+  push:  
+    branches:  
+      - main  # 触发分支，可自定义  
+  workflow_dispatch:    # 支持手动触发  
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      # 1. 拉取仓库代码
-      - name: 检出代码
-        uses: actions/checkout@v4
 
-      # 2. 配置 AWS 凭证（从 Settings -> Secrets 读取）
-      - name: 配置 AWS 凭证
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}   # AK，已配置在 Secrets
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # SK，已配置在 Secrets
-          aws-region: ${{ secrets.AWS_REGION }}   # 区域，如 cn-northwest-1，已配置在 Secrets
+jobs:  
+  build-push-ecr:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: 检出代码  
+        uses: actions/checkout@v4  
 
-      # 3. 登录 AWS ECR（中国区）
-      - name: 登录 AWS ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+      - name: 构建 Docker 镜像  
+        run: |  
+          docker build -t my-local-image:${{ github.sha }} .  
+          # 说明：my-local-image 为本地镜像名，可自定义  
 
-      # 4. 构建 Docker 镜像
-      - name: 构建镜像
-        run: |
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/devops/thumbnailpicture:${{ github.sha }} .
-          # 说明：
-          # - your-ecr-repo 替换成你在 ECR 控制台创建的仓库名（必改！）
-          # - github.sha 是 Git 提交 ID，保证镜像版本唯一
+      - name: 推送镜像到 AWS 中国区 ECR  
+        id: ecr-push  
+        uses: jwalton/gh-ecr-push@v2  
+        with:  
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  
+          region: cn-northwest-1  # 中国区区域，可选 cn-north-1 或 cn-northwest-1  
+          local-image: my-local-image:${{ github.sha }}  
+          image: 500953614955.dkr.ecr.cn-northwest-1.amazonaws.com.cn/devops/thumbnailpicture:${{ github.sha }}, 500953614955.dkr.ecr.cn-northwest-1.amazonaws.com.cn/devops/thumbnailpicture:latest  
+          # 说明：  
+          # 1. 替换 500953614955 为你的 AWS 账户 ID  
+          # 2. your-ecr-repo 替换为 ECR 仓库名（需提前创建）  
 
-      # 5. 推送镜像到 ECR
-      - name: 推送镜像
-        run: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/devops/thumbnailpicture:${{ github.sha }}
+      - name: 输出镜像地址  
+        run: |  
+          echo "推送的镜像地址: ${{ steps.ecr-push.outputs.imageUrl }}"
