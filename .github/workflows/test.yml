@@ -1,25 +1,40 @@
-name: Scan Docker Image in ECR
-
+name: 构建并推送镜像到 AWS-CN ECR
 on:
   push:
     branches:
-      - main
+      - main  # 触发分支，可改成你的分支名（如 dev、master）
+  workflow_dispatch:  # 允许手动触发（点一下就执行）
 
 jobs:
-  scan-image:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Configure AWS credentials
+      # 1. 拉取仓库代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 2. 配置 AWS 凭证（从 Settings -> Secrets 读取）
+      - name: 配置 AWS 凭证
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}   # AK，已配置在 Secrets
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} # SK，已配置在 Secrets
+          aws-region: ${{ secrets.AWS_REGION }}   # 区域，如 cn-northwest-1，已配置在 Secrets
 
-      - name: Scan ECR Image
-        uses: devops/thumbnailpicture@v1  # 替换为实际的 Action 仓库和版本
-        with:
-          repository: myorg/myimage
-          tag: latest
-          fail_threshold: high
-          ignore_list: CVE-2023-1234,CVE-2023-5678
+      # 3. 登录 AWS ECR（中国区）
+      - name: 登录 AWS ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # 4. 构建 Docker 镜像
+      - name: 构建镜像
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/devops/thumbnailpicture:${{ github.sha }} .
+          # 说明：
+          # - your-ecr-repo 替换成你在 ECR 控制台创建的仓库名（必改！）
+          # - github.sha 是 Git 提交 ID，保证镜像版本唯一
+
+      # 5. 推送镜像到 ECR
+      - name: 推送镜像
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/devops/thumbnailpicture:${{ github.sha }}
