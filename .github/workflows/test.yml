@@ -1,29 +1,25 @@
-name: 'build-test'
+name: Scan Docker Image in ECR
+
 on:
-  pull_request:
-    paths-ignore:
-      - '**.md'
   push:
     branches:
-      - master
-    paths-ignore:
-      - '**.md'
+      - main
 
 jobs:
-  build:
+  scan-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3.1.0
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          node-version: '20'
-      - run: npm install
-      - run: npm run all
-      - name: Verify dist does not need to be rebuilt
-        run: git add dist && git diff-index --quiet --cached HEAD --
-      - name: Semantic-release
-        if: github.ref == 'refs/heads/master'
-        run: npm run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Scan ECR Image
+        uses: devops/thumbnailpicture@v1  # 替换为实际的 Action 仓库和版本
+        with:
+          repository: myorg/myimage
+          tag: latest
+          fail_threshold: high
+          ignore_list: CVE-2023-1234,CVE-2023-5678
